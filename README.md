@@ -16,10 +16,9 @@ Bugs:
 - Large file performance is bad
 
 TODO:
-Expand this README
-Changed code to Java for multi-OS compatibility. Need to upload these changes!
-Prepaire for inital release.
-
+- Expand this README
+- Changed code to Java for multi-OS compatibility. Need to upload these changes!
+- Prepaire for inital release.
 - Implement filter tool to sort by date, and file extension
 - Make UI not as ugly
 - Expand preview window options and provide more spatial information
