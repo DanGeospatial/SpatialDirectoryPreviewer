@@ -1,6 +1,10 @@
 package com.dan.spatialdirectorypreviewer;
 
 import javafx.application.Application;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
@@ -18,10 +22,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Optional;
-import java.util.Random;
-import java.util.HashMap;
 
-/*Copyright (C) 2022  Daniel Nelson
+/* Spatial Directory Previewer Copyright (C) 2022  Daniel Nelson
 
         This program is free software: you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -48,6 +50,7 @@ public class MainApp extends Application {
     private ArrayList<String> SelectedFileTypes = new ArrayList<>();
 
     private ArrayList<File> FileList = new ArrayList<>();
+    private ObservableList<String> contentList = FXCollections.observableArrayList();
     private File currentDirectory;
 
     MenuBar menuBar = new MenuBar();
@@ -102,10 +105,9 @@ public class MainApp extends Application {
                 DirectoryChooser getTopDirectory = new DirectoryChooser();
                 getTopDirectory.setInitialDirectory(new File(System.getProperty("user.home")));
                 getTopDirectory.setTitle("Select Root Folder");
-                File selectedDirectory = getTopDirectory.showDialog(mainstage);
-                currentDirectory = selectedDirectory;
+                currentDirectory = getTopDirectory.showDialog(mainstage);
                 //Add all videos to ArrayList
-                addFiles(selectedDirectory);
+                Refresh();
                 clearConsole();
             }
         });
@@ -132,9 +134,19 @@ public class MainApp extends Application {
             }
         });
     }
-    private File selectFile() {
+    private File selectFile(String yourFileName) {
         File yourfile = null;
 
+        for (File f : FileList){
+            if (f.getName().equals(yourFileName)){
+                yourfile = f;
+                break;
+            }
+        }
+
+        if (yourfile == null){
+            ConsoleArea.setText("Issue with file matching.");
+        }
 
         return yourfile;
     }
@@ -151,7 +163,8 @@ public class MainApp extends Application {
         }
         if (listedFiles != null){
             for (File file : listedFiles){
-                if (file.isFile() && (file.getName().endsWith(String.valueOf(SelectedFileTypes)))){
+                //TODO: this is broken String.valueOf(SelectedFileTypes)
+                if (file.isFile() && (file.getName().endsWith(".tif") || file.getName().endsWith(".shp"))){
                     gsfiles.add(file);
                 } else if (file.isDirectory()) {
                     File thisdirectory = new File(file.getAbsolutePath());
@@ -164,10 +177,18 @@ public class MainApp extends Application {
             ConsoleArea.setText("Select directory with geospatial files!");
         }
     }
-    //TODO update this
-    private void showFileInfo(File selectedFile) {
-        selectedFileName.setText(selectedFile.getName());
-        selectedFilePath.setText(selectedFile.toString());
+
+    private void showFileInfo(String selectedFile) {
+        if (selectFile(selectedFile) != null){
+            selectedFileName.setText(selectedFile);
+            selectedFilePath.setText(selectFile(selectedFile).toString());
+            createPreview(selectFile(selectedFile));
+        }
+
+    }
+
+    private void showPreview(){
+
     }
 
     private void createPreview(File filetopreview){
@@ -184,7 +205,18 @@ public class MainApp extends Application {
     private void clearConsole(){ConsoleArea.setText("");
     }
 
-    private void Refresh(){addFiles(currentDirectory);}
+    private void Refresh(){
+        try{
+            addFiles(currentDirectory);
+            contentList.clear();
+            for (File f : FileList){
+                contentList.add(f.getName());
+            }
+        }catch (Exception e){
+            ConsoleArea.setText("Select directory with files!");
+        }
+
+    }
 
     @Override
     public void start(Stage rootstage) throws IOException {
@@ -195,13 +227,11 @@ public class MainApp extends Application {
         Separator consoleLine = new Separator(Orientation.HORIZONTAL);
 
         SplitPane mainPane = new SplitPane();
-        SplitPane propPane = new SplitPane();
 
         //add HBox for console output
         HBox bottomBox = new HBox();
         VBox vBox = new VBox(menuBar);
         VBox vBoxProperties = new VBox();
-        VBox vBOXPropRight = new VBox();
         VBox vBoxList = new VBox();
         Scene scene = new Scene(vBox, 800, 600);
         rootstage.setResizable(false);
@@ -209,7 +239,7 @@ public class MainApp extends Application {
         rootstage.show();
         rootstage.setTitle(APPLICATION_WINDOW_TITLE);
 
-        //TODO: finish geolist and add file properties
+        //TODO: add file properties to locations
 
         menuBar.getMenus().add(fileMenu);
         menuBar.getMenus().add(editMenu);
@@ -222,18 +252,26 @@ public class MainApp extends Application {
         RefreshButton.setAlignment(Pos.TOP_LEFT);
         PreviewFile.setAlignment(Pos.TOP_LEFT);
 
-
-        vBOXPropRight.getChildren().addAll(CellSize,GCS,PCS);
         bottomBox.getChildren().addAll(ConsoleArea);
         vBoxList.getChildren().addAll(RefreshButton, geoList);
-        vBoxProperties.getChildren().addAll(PreviewFile, selectedFileName, selectedFilePath);
+        vBoxProperties.getChildren().addAll(PreviewFile, selectedFileName, GCS, PCS, CellSize, Bands, coords);
 
-        propPane.getItems().addAll(vBoxProperties, vBOXPropRight);
-        mainPane.getItems().addAll(vBoxList,propPane);
-        vBox.getChildren().addAll(mainPane, consoleLine, bottomBox);
+        mainPane.getItems().addAll(vBoxList,vBoxProperties);
+        vBox.getChildren().addAll(mainPane, consoleLine, bottomBox, selectedFilePath);
 
+        ConsoleArea.setText("Application Started!");
 
-
+        geoList.setItems(contentList);
+        geoList.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
+        geoList.setOrientation(Orientation.VERTICAL);
+        geoList.getSelectionModel().selectedItemProperty().addListener(
+                new ChangeListener<String>() {
+                    @Override
+                    public void changed(ObservableValue<? extends String> observable, String oldValue, String newValue) {
+                        showFileInfo(newValue);
+                    }
+                }
+        );
 
         RefreshButton.setOnAction(new EventHandler<ActionEvent>() {
             @Override
@@ -254,10 +292,10 @@ public class MainApp extends Application {
             @Override
             public void handle(ActionEvent actionEvent) {
                 try{
-                    //Create preview
-                    createPreview(selectFile());
+                    //show preview
+                    showPreview();
                 }catch (Exception e){
-                    ConsoleArea.setText("Error displaying image. Check file.");
+                    ConsoleArea.setText("Error displaying image.");
                 }
 
             }
