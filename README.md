@@ -1,7 +1,8 @@
 # SpatialDirectoryPreviewer
 A simple tool for quickly listing geospatial files, previewing the file and displaying metadata.
 
-Important! This version does not have all features fully implemented.
+Important! This version does not have all features fully implemented. It will list files but not preview them.
+This project makes up the basis for Drone-Image-Selector which focuses on selecting groups of drone images.
 
 Dependencies:
 - Java 17
